@@ -38,11 +38,13 @@ class AGTable:
         self.component_id = component_id
         self.container = AgGrid(
             id=component_id,
-            # className="ag-theme-balham-dark",
-            className="ag-theme-alpine-auto-dark",
-            columnSize="sizeToFit",
+            # className="ag-theme-balham-dark ag-theme-custom",
+            # className="ag-theme-quartz-auto-dark ag-theme-custom",
+            className="ag-theme-alpine-auto-dark ag-theme-custom",
+            # columnSize="sizeToFit",
             dashGridOptions={"rowSelection": "single"},
-            style={"maxHeight": "200px", "overflow": "auto"},
+            defaultColDef={"flex": 1, "filter": True},
+            style={"maxHeight": "300px", "overflow": "auto"},
         )
 
         # Fill in plugin properties
@@ -76,7 +78,14 @@ class AGTable:
         table_data = table_df.to_dict("records")
 
         # Define column definitions based on the DataFrame
-        column_defs = [{"headerName": col, "field": col, "filter": "agTextColumnFilter"} for col in table_df.columns]
+        column_defs = [
+            {"field": col, "valueFormatter": {"function": "d3.format(',')(params.value)"}} if col in ['Age', 'Salary']
+            else {"field": col, "valueFormatter": {"function": "d3.format('.2f')(params.value)"}} if col == 'Bonus'
+            else {"field": col, "valueFormatter": {"function": "params.value.toUpperCase()"}} if col == 'Name'
+            else {"field": col, "cellRenderer": "Link"} if col == 'Company'
+            else {"field": col}
+            for col in table_df.columns
+        ]
 
         # Select the first row by default
         selected_rows = table_df.head(1).to_dict("records")
@@ -97,26 +106,10 @@ if __name__ == "__main__":
         "Age": [10, 20, 30, 40, 50, 60],
         "Company": ["IBM", "Google", "Amazon", "Facebook", "Apple", "Microsoft"],
         "Title": ["CEO", "CFO", "CTO", "CIO", "COO", "CMO"],
-        "Salary": [100, 200, 300, 400, 500, 600],
-        "Bonus": [10, 20, 30, 40, 50, 60],
+        "Salary": [1000, 2000, 3000, 4000, 5000, 6000],
+        "Bonus": [0.2445, 0.3641, 0.5647, 0.7865, 0.4565, 0.2956],
     }
     df = pd.DataFrame(data)
-
-    # Testing HTML Links
-    df["Company"] = df["Company"].map(lambda x: f"<a href='https://www.google.com' target='_blank'>{x}</a>")
-
-    # Create a Dash app
-    app = Dash(__name__)
-
-    # Create the existing table component
-    my_table = Table()
-    existing_table = my_table.create_component(
-        "current-table", header_color="rgb(60, 100, 60)", row_select="single", transparent=False
-    )
-
-    # Note: This is old style API, but will be replaced anyway
-    existing_table.columns = my_table.column_setup(df, markdown_columns=["Company"])
-    existing_table.data = df.to_dict("records")
 
     # Create the new AG Table component
     ag_table = AGTable()
@@ -127,9 +120,25 @@ if __name__ == "__main__":
         ag_table.update_properties(df)
     )
 
+
+    # Create the existing table component
+    my_table = Table()
+    existing_table = my_table.create_component(
+        "current-table", header_color="rgb(60, 100, 60)", row_select="single", transparent=False
+    )
+
+    # Note: This is old style API, but will be replaced anyway
+    existing_table.columns = my_table.column_setup(df, markdown_columns=["Company"])
+    # Testing HTML Links
+    df["Company"] = df["Company"].map(lambda x: f"<a href='https://www.google.com' target='_blank'>{x}</a>")
+    existing_table.data = df.to_dict("records")
+
+    # Create a Dash app
+    app = Dash(__name__)
+
     # Set up the layout
-    app.layout = html.Div([existing_table, ag_table_component])
+    app.layout = html.Div([existing_table, html.Br(), ag_table_component])
 
     # Run the app
-    webbrowser.open("http://localhost:8050")
+    # webbrowser.open("http://localhost:8050")
     app.run(debug=True)
